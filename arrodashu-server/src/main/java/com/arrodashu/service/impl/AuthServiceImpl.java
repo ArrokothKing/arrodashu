@@ -8,6 +8,7 @@ import com.arrodashu.mapper.UserMapper;
 import com.arrodashu.security.JwtUtils;
 import com.arrodashu.service.AuthService;
 import com.arrodashu.vo.LoginVO;
+import com.arrodashu.vo.UserInfoVO;
 import com.arrodashu.vo.UserVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
@@ -54,7 +55,7 @@ public class AuthServiceImpl implements AuthService {
         // 组装返回数据
         LoginVO loginVO = new LoginVO();
         loginVO.setToken(token);
-        loginVO.setUser(convertToVO(user));
+        loginVO.setUser(convertToUserInfoVO(user));
         
         return loginVO;
     }
@@ -104,10 +105,19 @@ public class AuthServiceImpl implements AuthService {
     }
     
     /**
-     * 转换为 VO
+     * 转换为 UserVO
      */
     private UserVO convertToVO(User user) {
         UserVO vo = new UserVO();
+        BeanUtils.copyProperties(user, vo);
+        return vo;
+    }
+
+    /**
+     * 转换为 UserInfoVO
+     */
+    private UserInfoVO convertToUserInfoVO(User user) {
+        UserInfoVO vo = new UserInfoVO();
         BeanUtils.copyProperties(user, vo);
         return vo;
     }

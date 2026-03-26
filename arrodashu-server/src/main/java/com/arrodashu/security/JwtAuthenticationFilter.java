@@ -1,6 +1,6 @@
 package com.arrodashu.security;
 
-import com.arrodashu.utils.JwtUtil;
+import com.arrodashu.security.JwtUtils;
 import jakarta.annotation.Resource;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -24,44 +24,48 @@ import java.util.ArrayList;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     
     @Resource
-    private JwtUtil jwtUtil;
+    private JwtUtils jwtUtils;
     
     @Override
-    protected void doFilterInternal(HttpServletRequest request, 
-                                    HttpServletResponse response, 
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         try {
             // 获取Token
             String token = getTokenFromRequest(request);
-            
-            // 验证Token
-            if (StringUtils.hasText(token) && jwtUtil.validateToken(token)) {
-                // 获取用户ID
-                Long userId = jwtUtil.getUserIdFromToken(token);
-                String username = jwtUtil.getUsernameFromToken(token);
-                
-                if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    // 创建认证对象
-                    UsernamePasswordAuthenticationToken authentication = 
-                            new UsernamePasswordAuthenticationToken(
-                                    userId, 
-                                    null, 
-                                    new ArrayList<>()
-                            );
-                    authentication.setDetails(username);
-                    
-                    // 设置安全上下文
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                    
-                    // 将用户ID存入request属性
-                    request.setAttribute("userId", userId);
-                    request.setAttribute("username", username);
+
+            // 检查是否存在token且还未被认证
+            if (StringUtils.hasText(token) && SecurityContextHolder.getContext().getAuthentication() == null) {
+                // 验证Token
+                if (jwtUtils.validateToken(token)) {
+                    // 获取用户ID
+                    Long userId = jwtUtils.getUserIdFromToken(token);
+                    String username = jwtUtils.getUsernameFromToken(token);
+
+                    if (userId != null && StringUtils.hasText(username)) {
+                        // 创建认证对象
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(
+                                        userId,
+                                        null,
+                                        new ArrayList<>()
+                                );
+                        authentication.setDetails(username);
+
+                        // 设置安全上下文
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                        // 将用户ID存入request属性
+                        request.setAttribute("userId", userId);
+                        request.setAttribute("username", username);
+                    }
                 }
             }
         } catch (Exception e) {
             log.error("JWT认证失败：", e);
+            // 发生异常时不中断请求，让后续的错误处理机制处理
         }
-        
+
         filterChain.doFilter(request, response);
     }
     
