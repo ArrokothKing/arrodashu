@@ -6,7 +6,7 @@ import com.arrodashu.dto.RegisterDTO;
 import com.arrodashu.entity.User;
 import com.arrodashu.mapper.UserMapper;
 import com.arrodashu.service.UserService;
-import com.arrodashu.utils.JwtUtil;
+import com.arrodashu.security.JwtUtils;
 import com.arrodashu.vo.LoginVO;
 import com.arrodashu.vo.UserInfoVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -28,7 +28,7 @@ public class UserServiceImpl implements UserService {
     private UserMapper userMapper;
     
     @Resource
-    private JwtUtil jwtUtil;
+    private JwtUtils jwtUtils;
     
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     
@@ -41,33 +41,38 @@ public class UserServiceImpl implements UserService {
         if (loginDTO.getPassword() == null || loginDTO.getPassword().isEmpty()) {
             throw new BusinessException(400, "密码不能为空");
         }
-        
+
         // 查询用户
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(User::getUsername, loginDTO.getUsername());
         User user = userMapper.selectOne(wrapper);
-        
+
+        // 检查默认管理员账户是否存在，如果不存在则创建
+        if (user == null && "admin".equals(loginDTO.getUsername())) {
+            user = createDefaultAdminUser();
+        }
+
         if (user == null) {
             throw new BusinessException(401, "用户名或密码错误");
         }
-        
+
         // 验证密码
         if (!passwordEncoder.matches(loginDTO.getPassword(), user.getPassword())) {
             throw new BusinessException(401, "用户名或密码错误");
         }
-        
+
         // 检查用户状态
         if (user.getStatus() != 1) {
             throw new BusinessException(403, "账号已被禁用");
         }
-        
+
         // 生成Token
-        String token = jwtUtil.generateToken(user.getId(), user.getUsername());
-        
+        String token = jwtUtils.generateToken(user.getId(), user.getUsername());
+
         // 构建返回结果
         LoginVO loginVO = new LoginVO();
         loginVO.setToken(token);
-        
+
         UserInfoVO userInfoVO = new UserInfoVO();
         userInfoVO.setId(user.getId());
         userInfoVO.setUsername(user.getUsername());
@@ -75,9 +80,36 @@ public class UserServiceImpl implements UserService {
         userInfoVO.setAvatar(user.getAvatar());
         userInfoVO.setEmail(user.getEmail());
         loginVO.setUser(userInfoVO);
-        
+
         log.info("用户登录成功：{}", user.getUsername());
         return loginVO;
+    }
+
+    /**
+     * 创建默认管理员用户
+     */
+    private User createDefaultAdminUser() {
+        // 再次查询以防并发
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getUsername, "admin");
+        User existingUser = userMapper.selectOne(wrapper);
+
+        if (existingUser != null) {
+            return existingUser;
+        }
+
+        // 创建默认管理员用户
+        User adminUser = new User();
+        adminUser.setUsername("admin");
+        adminUser.setPassword(passwordEncoder.encode("admin123")); // 正确的BCrypt加密
+        adminUser.setEmail("admin@arrodashu.com");
+        adminUser.setNickname("管理员");
+        adminUser.setStatus(1);
+
+        userMapper.insert(adminUser);
+
+        log.info("创建默认管理员用户成功");
+        return adminUser;
     }
     
     @Override

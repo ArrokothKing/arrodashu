@@ -4,7 +4,7 @@
       <!-- 顶部导航 -->
       <el-header class="header">
         <div class="logo">
-          <el-icon :size="32"><Tree /></el-icon>
+          <el-icon :size="32"><House /></el-icon>
           <span class="title">大树 ArroDashu</span>
         </div>
         <el-menu
@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { Tree } from '@element-plus/icons-vue'
+import { House } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
